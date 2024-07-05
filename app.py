@@ -16,8 +16,6 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
-
-
 sns.set_palette(sns.color_palette(["#FFA600", "#FF2E00"]))
 # Carregar les dades
 @st.cache_resource
