@@ -1,0 +1,306 @@
+### EN brut 
+
+    st.header("Modelització")
+    selected_model = st.selectbox("Selecciona el model", [ "Regressió Lineal", "Regressió Polinòmica", "Màquines de Vectores de Suport (SVM)", "Random Forest", "Xarxes Neuronals", "Gradient Boosting Machines (GBM)", "Anàlisi de Components Principals (PCA)","Resum de Mètriques"])
+    def calculate_metrics(y_train, y_test, y_pred_train, y_pred_test):
+        mse_train = mean_squared_error(y_train, y_pred_train)
+        mse_test = mean_squared_error(y_test, y_pred_test)
+        r2_train = r2_score(y_train, y_pred_train)
+        r2_test = r2_score(y_test, y_pred_test)
+        return mse_train, mse_test, r2_train, r2_test
+    columns_to_drop = ['Lot ASM', 'Lot', 'Productor']
+    try: 
+        est.drop(columns=columns_to_drop, inplace=True)
+    except KeyError as e:
+        st.warning("Algunes columnes no es van trobar per ser eliminades: {e}")
+
+    est_numeric = est.apply(pd.to_numeric, errors='coerce')
+    y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42']
+
+    selected_y = st.selectbox("Selecciona la variable Y:", y_options, index=3)
+
+    X = est_numeric.drop(columns=y_options)
+    y = est_numeric[selected_y]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    results = []
+
+    # Regresió Lineal
+    model_lr = LinearRegression()
+    model_lr.fit(X_train, y_train)
+    y_pred_train_lr = model_lr.predict(X_train)
+    y_pred_test_lr = model_lr.predict(X_test)
+    mse_train_lr, mse_test_lr, r2_train_lr, r2_test_lr = calculate_metrics(y_train, y_test, y_pred_train_lr, y_pred_test_lr)
+    results.append(['Regressió Lineal', mse_train_lr, mse_test_lr, r2_train_lr, r2_test_lr])
+
+    # Regresió Polinòmica
+    degree = 2  # Per defecte
+    poly = PolynomialFeatures(degree=degree)
+    X_poly_train = poly.fit_transform(X_train)
+    X_poly_test = poly.transform(X_test)
+    model_pr = LinearRegression()
+    model_pr.fit(X_poly_train, y_train)
+    y_pred_train_pr = model_pr.predict(X_poly_train)
+    y_pred_test_pr = model_pr.predict(X_poly_test)
+    mse_train_pr, mse_test_pr, r2_train_pr, r2_test_pr = calculate_metrics(y_train, y_test, y_pred_train_pr, y_pred_test_pr)
+    results.append(['Regressió Polinòmica', mse_train_pr, mse_test_pr, r2_train_pr, r2_test_pr])
+
+    # SVM
+    model_svm = SVR(kernel='linear')
+    model_svm.fit(X_train, y_train)
+    y_pred_train_svm = model_svm.predict(X_train)
+    y_pred_test_svm = model_svm.predict(X_test)
+    mse_train_svm, mse_test_svm, r2_train_svm, r2_test_svm = calculate_metrics(y_train, y_test, y_pred_train_svm, y_pred_test_svm)
+    results.append(['SVM', mse_train_svm, mse_test_svm, r2_train_svm, r2_test_svm])
+
+    # Convertir els resultats a un DataFrame
+    results_df = pd.DataFrame(results, columns=['Model', 'MSE Train', 'MSE Test', 'R² Train', 'R² Test'])
+
+    # Mostrar taula resumida amb les mètriques de tots els models
+    st.write("Resum de Mètriques")
+    st.dataframe(results_df.style.highlight_min(subset=['MSE Train', 'MSE Test'], color='lightgreen').highlight_max(subset=['R² Train', 'R² Test'], color='lightgreen'))
+
+    if selected_model != "Resum de Mètriques":
+        if selected_model == "Regressió Lineal":
+            y_pred_train = y_pred_train_lr
+            y_pred_test = y_pred_test_lr
+        elif selected_model == "Regressió Polinòmica":
+            y_pred_train = y_pred_train_pr
+            y_pred_test = y_pred_test_pr
+        elif selected_model == "Màquines de Vectores de Suport (SVM)":
+            y_pred_train = y_pred_train_svm
+            y_pred_test = y_pred_test_svm
+
+        # Visualització gràfica
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Representació gràfica de les prediccions versus els valors reals
+        ax.scatter(y_test, y_pred_test, color='blue', label='Prediccions')
+        ax.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', lw=2, color='red', label='Línia de regressió')
+        ax.set_title('Prediccions vs. Valors Reals')
+        ax.set_xlabel('Valors Reals')
+        ax.set_ylabel('Prediccions')
+        ax.legend()
+        ax.grid(True)
+        
+        st.pyplot(fig)
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		elif option == "Modelització":
+    
+		    y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42']
+		    selected_y = st.selectbox("Selecciona la variable Y:", y_options, index=3)
+    
+		    est_numeric = est.apply(pd.to_numeric, errors='coerce')
+		    X = est_numeric.drop(columns=y_options)
+		    y = est_numeric[selected_y]
+		    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    
+		    model_params = {
+		        'Linear Regression': {
+		            'model': LinearRegression(),
+		            'params': {
+		                'fit_intercept': [True, False],
+		                'normalize': [True, False]
+		            }
+		        },
+		        'Polynomial Regression (degree=2)': {
+		            'model': PolynomialFeatures(degree=2),
+		            'params': {
+		                'degree': [2, 3, 4, 5],
+		                'interaction_only': [False, True],
+		                'include_bias': [True, False]
+		            }
+		        },
+		        'SVR': {
+		            'model': SVR(),
+		            'params': {
+		                'C': [0.1, 1, 10, 100, 1000],
+		                'gamma': [0.001, 0.01, 0.1, 1, 10],
+		                'epsilon': [0.001, 0.01, 0.1, 1, 10],
+		                'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+		                'degree': [2, 3, 4, 5]
+		            }
+		        },
+		        'Random Forest': {
+		            'model': RandomForestRegressor(random_state=42),
+		            'params': {
+		                'n_estimators': [50, 100, 200, 500],
+		                'max_features': ['auto', 'sqrt', 'log2'],
+		                'max_depth': [None, 10, 20, 30, 50],
+		                'min_samples_split': [2, 5, 10],
+		                'min_samples_leaf': [1, 2, 4],
+		                'bootstrap': [True, False]
+		            }
+		        },
+		        'Gradient Boosting': {
+		            'model': GradientBoostingRegressor(random_state=42),
+		            'params': {
+		                'n_estimators': [50, 100, 200, 500],
+		                'learning_rate': [0.01, 0.05, 0.1, 0.2],
+		                'max_depth': [3, 5, 7, 10],
+		                'min_samples_split': [2, 5, 10],
+		                'min_samples_leaf': [1, 2, 4],
+		                'subsample': [0.8, 0.9, 1.0]
+		            }
+		        }
+		    }
+    
+
+		    results = []
+		    for model_name, mp in model_params.items():
+		        if model_name == 'Polynomial Regression (degree=2)':
+		            poly_features = PolynomialFeatures(degree=2)
+		            X_train_poly = poly_features.fit_transform(X_train)
+		            X_test_poly = poly_features.transform(X_test)
+		            lin_reg = LinearRegression()
+		            lin_reg.fit(X_train_poly, y_train)
+		            y_train_pred = lin_reg.predict(X_train_poly)
+		            y_test_pred = lin_reg.predict(X_test_poly)
+		            train_mse = mean_squared_error(y_train, y_train_pred)
+		            test_mse = mean_squared_error(y_test, y_test_pred)
+		            train_r2 = r2_score(y_train, y_train_pred)
+		            test_r2 = r2_score(y_test, y_test_pred)
+		        else:
+		            grid_search = GridSearchCV(mp['model'], mp['params'], cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
+		            grid_search.fit(X_train, y_train)
+		            best_model = grid_search.best_estimator_
+		            y_train_pred = best_model.predict(X_train)
+		            y_test_pred = best_model.predict(X_test)
+		            train_mse = mean_squared_error(y_train, y_train_pred)
+		            test_mse = mean_squared_error(y_test, y_test_pred)
+		            train_r2 = r2_score(y_train, y_train_pred)
+		            test_r2 = r2_score(y_test, y_test_pred)
+
+		        results.append({
+		            'Model': model_name,
+		            'Train MSE': train_mse,
+		            'Test MSE': test_mse,
+		            'Train R²': train_r2,
+		            'Test R²': test_r2
+		        })
+
+		    results_df = pd.DataFrame(results)
+		    st.write("## Resultats de la Modelització")
+		    st.write(results_df)
+    
+		    st.write("## Prediccions vs. Valors Reals")
+
+		    for model_name, mp in model_params.items():
+		        if model_name == 'Polynomial Regression (degree=2)':
+		            poly_features = PolynomialFeatures(degree=2)
+		            X_train_poly = poly_features.fit_transform(X_train)
+		            X_test_poly = poly_features.transform(X_test)
+		            lin_reg = LinearRegression()
+		            lin_reg.fit(X_train_poly, y_train)
+		            y_test_pred = lin_reg.predict(X_test_poly)
+		        else:
+		            grid_search = GridSearchCV(mp['model'], mp['params'], cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
+		            grid_search.fit(X_train, y_train)
+		            best_model = grid_search.best_estimator_
+		            y_test_pred = best_model.predict(X_test)
+
+		        fig, ax = plt.subplots()
+		        ax.scatter(y_test, y_test_pred, edgecolors=(0, 0, 0))
+		        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
+		        ax.set_xlabel('Valors Reals')
+		        ax.set_ylabel('Prediccions')
+		        ax.set_title(f'{model_name} Predictions vs. Actual')
+		        st.pyplot(fig)
+
+		    # Feature Importance
+		    st.write("## Importància de les Característiques")
+
+		    for model_name, mp in model_params.items():
+		        if model_name in ['Random Forest', 'Gradient Boosting']:
+		            grid_search = GridSearchCV(mp['model'], mp['params'], cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
+		            grid_search.fit(X_train, y_train)
+		            best_model = grid_search.best_estimator_
+		            importances = best_model.feature_importances_
+		            indices = np.argsort(importances)[::-1]
+		            st.write(f"### {model_name}")
+		            for f in range(X_train.shape[1]):
+		                st.write(f"{X_train.columns[indices[f]]}: {importances[indices[f]]}")
+    
+
+
+
+		elif option == "Conclusions":
+		    st.header("Conclusions i Càlcul")
+		    rf_importance = {
+		            "MUFA Àcids grassos (%)": 0.050194707364677675,
+		            "ETHANONE_volàtils (àrea/pes)": 0.04427457178846739,
+		            "C 18:1n9 Àcids grassos (%)": 0.04331032960228769,
+		            "C 20:0 Àcids grassos (%)": 0.04062657161662134,
+		            "alfa_Tocoferols (mg/g)": 0.0383617539762443,
+		            "C 18:1n7 Àcids grassos (%)": 0.03658235117110581,
+		            "2,4-HEPTADIENAL_volàtils (àrea/pes)": 0.034697822683303674,
+		            "2-PENTYLFURAN_volàtils (àrea/pes)": 0.03145725454663345,
+		            "C 14:0 Àcids grassos (%)": 0.030094569504719577,
+		            "XT oleo proveidor": 0.02756058579858335
+		        }
+    
+		    gb_importance = {
+		        "C 18:1n9 Àcids grassos (%)": 0.2164959504316373,
+		        "MUFA Àcids grassos (%)": 0.12342920320000098,
+		        "6M3,5H2ONE_volàtils (àrea/pes)": 0.09377903592145104,
+		        "C 16:1n7 Àcids grassos (%)": 0.07194716474013421,
+		        "ETHANONE_volàtils (àrea/pes)": 0.04764219814228394,
+		        "2-PENTYLFURAN_volàtils (àrea/pes)": 0.04620739314273533,
+		        "C 17:0 Àcids grassos (%)": 0.04286440654916981,
+		        "C 14:0 Àcids grassos (%)": 0.03434769941699093,
+		        "XT oleo reacció": 0.03277931233968604,
+		        "XT oleo proveidor": 0.031262390210844454
+		    }
+
+		    # Get the top 10 variables
+		    top_10_variables = sorted(gb_importance.items(), key=lambda item: item[1], reverse=True)[:10]
+
+		    # Display the top 10 variables with weights rounded to two decimals
+		    st.subheader("Les 10 Principals Variables per a la Predicció")
+		    for var, weight in top_10_variables:
+		        st.write(f"{var}: {weight:.2f}")
+
+		    # Explanation of the Best Model
+		    st.subheader("Millor Model Després de les Seccions de Modelatge")
+		    st.write("""
+		    Després d'analitzar els resultats de diversos models de regressió, el Gradient Boosting es destaca com el millor model per a la predicció. 
+		    Aquest model presenta un bon rendiment tant en termes de l'error quadràtic mitjà (MSE) com en el coeficient de determinació (R²). 
+		    Els seus principals paràmetres són:
+
+		    - Nombre d'arbres: 100
+		    - Aprenentatge: 0.1
+		    - Màxim profunditat: 3
+
+		    El Gradient Boosting ha demostrat ser especialment efectiu en capturar les relacions complexes entre les variables independents i la variable dependent. 
+		    Aquest model ofereix una millor capacitat predictiva comparada amb altres models com la regressió lineal, la regressió polinòmica i el SVR.
+		    """)
+
+		
