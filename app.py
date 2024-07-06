@@ -1,6 +1,5 @@
 
 import matplotlib.pyplot as plt
-import statsmodels.api as sm
 
 from sklearn.model_selection import train_test_split,GridSearchCV, cross_val_score
 from sklearn.compose import ColumnTransformer
