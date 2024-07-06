@@ -20,11 +20,11 @@ from sklearn.metrics import mean_squared_error, r2_score
 @st.cache_resource
 
 def load_data():
-    caract = pd.read_csv('caracteritzacio_dades.csv', sep=';', encoding='latin1')
-    estab = pd.read_csv('estabilitat_dades.csv', sep=';', encoding='latin1')
-    est = pd.read_csv('estadistiques_dades.csv', sep=';', encoding='latin1')
-    matriu = pd.read_csv('matriu_dades.csv', sep=';', encoding='latin1')
-    oleo = pd.read_csv('olea_dades.csv', sep=';', encoding='latin1')
+    caract = pd.read_csv('caracteritzacio_dades.txt', sep='\t', encoding='utf-16')
+    estab = pd.read_csv('estabilitat_dades.txt', sep='\t', encoding='utf-16')
+    est = pd.read_csv('estadistiques_dades.txt', sep='\t', encoding='utf-16')
+    matriu = pd.read_csv('matriu_dades.txt', sep='\t', encoding='utf-16')
+    oleo = pd.read_csv('olea_dades.txt', sep='\t', encoding='utf-16')
     
     return oleo, matriu, est, caract, estab
 
