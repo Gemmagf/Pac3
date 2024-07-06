@@ -351,7 +351,7 @@ if check_password():
         y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42']
         selected_y = st.selectbox("Selecciona la variable Y:", y_options, index=3)
 
-        est_numeric = est.apply(pd.to_numeric, errors='coerce')
+        est_numeric = est.apply(lambda x: pd.to_numeric(x.astype(str).str.replace(',', '.'), errors='coerce'))
         X = est_numeric.drop(columns=y_options)
         y = est_numeric[selected_y]
 
