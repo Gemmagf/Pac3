@@ -1,7 +1,4 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import seaborn as sns
+
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
@@ -16,7 +13,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
-sns.set_palette(sns.color_palette(["#FFA600", "#FF2E00"]))
+
+
 # Carregar les dades
 @st.cache_resource
 def load_data():
@@ -184,10 +182,21 @@ if check_password():
                     fig, ax = plt.subplots()
                 
                     try:
-                        sns.histplot(data[column], bins=30, kde=True, ax=ax)
+                        ax.hist(data[column].dropna(), bins=30, edgecolor='k')
+                        ax.set_title(f'Distribució de column')
+                        ax.set_xlabel(column)
+                        ax.set_ylabel('Freqüència')
+                       
                     except np.linalg.LinAlgError:
-                        sns.histplot(data[column], bins=30, kde=False, ax=ax)
+                       ax.hist(data[column].dropna(), bins=30, edgecolor='k')
+                       ax.set_title(f'Distribució de column')
+                       ax.set_xlabel(column)
+                       ax.set_ylabel('Freqüència')
+                    
                     st.pyplot(fig)
+                    
+                    
+       
 
     elif option == "Anàlisi de Correlacions":
         st.header("Anàlisi de Correlacions")
@@ -204,42 +213,50 @@ if check_password():
     
     
         # Crear el heatmap
-        st.subheader("Heatmaps de Correlació")
-    
+        st.subheader("Matriu de Correlacions")
+            
         col1, col2 = st.columns(2)
-    
+
         with col1:
             st.write("Correlació entre les variables i Final 7")
             filtered_corr_final7 = corr_final7[(corr_final7['Final 7'].abs() >= corr_min) & (corr_final7['Final 7'].abs() <= corr_max)]
             fig1, ax1 = plt.subplots(figsize=(10, 30))
-            sns.heatmap(filtered_corr_final7, annot=False, cmap="YlOrRd", cbar=True, ax=ax1)
-            ax1.tick_params(axis='y', labelsize=20)
+            cax1 = ax1.matshow(filtered_corr_final7, cmap="YlOrRd")
+            fig1.colorbar(cax1)
+            ax1.set_yticks(range(len(filtered_corr_final7.index)))
+            ax1.set_yticklabels(filtered_corr_final7.index, fontsize=20)
             st.pyplot(fig1)
-        
+
         with col2:
             st.write("Correlació entre les variables i Final 42")
             filtered_corr_final42 = corr_final42[(corr_final42['Final 42'].abs() >= corr_min) & (corr_final42['Final 42'].abs() <= corr_max)]
-        
             fig2, ax2 = plt.subplots(figsize=(10, 30))
-            sns.heatmap(filtered_corr_final42, annot=False, cmap="YlOrRd", cbar=True, ax=ax2)
-            ax2.tick_params(axis='y', labelsize=20)
+            cax2 = ax2.matshow(filtered_corr_final42, cmap="YlOrRd")
+            fig2.colorbar(cax2)
+            ax2.set_yticks(range(len(filtered_corr_final42.index)))
+            ax2.set_yticklabels(filtered_corr_final42.index, fontsize=20)
             st.pyplot(fig2)
-    
+
         st.subheader("Resum de Correlacions Significatives")
 
         # Resum de les correlacions més altes per Final 7 i Final 42
         top_corr_final7 = corr_final7['Final 7'].sort_values(ascending=False).head(10)
         top_corr_final42 = corr_final42['Final 42'].sort_values(ascending=False).head(10)
-    
+
         col1, col2 = st.columns(2)
-    
+
         with col1:
             st.write("Correlacions amb 'Final 7'")
             st.table(top_corr_final7)
-    
+
         with col2:
             st.write("Correlacions amb 'Final 42'")
             st.table(top_corr_final42)
+        
+        
+        
+        
+        
 
 
     elif option == "Modelització":
