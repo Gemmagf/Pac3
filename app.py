@@ -204,9 +204,9 @@ if check_password():
 
     elif option == "Anàlisi de Correlacions":
         st.header("Anàlisi de Correlacions")
-
+        est_numeric = est.apply(pd.to_numeric, errors='coerce')
         # Calcula la matriu de correlacions
-        corr_matrix = est.corr()
+        corr_matrix = est_numeric.corr()
         corr_matrix = corr_matrix.drop(['Previ 7'])
         corr_matrix = corr_matrix.drop(['Previ 42'])
         # Filtrar per les correlacions de Final 7 i Final 42
