@@ -13,11 +13,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.feature_selection import SelectKBest, f_regression
 
 
 
 # Carregar les dades
-@st.cache_resource
+
 
 def load_data():
     caract = pd.read_csv('caracteritzacio_dades.txt', sep='\t', encoding='utf-16')
@@ -204,11 +205,17 @@ if check_password():
 
     elif option == "Anàlisi de Correlacions":
         st.header("Anàlisi de Correlacions")
+       
+        y_options = ['Previ 7',  'Previ 42',  'Lot ASM', 'Lot', 'Productor', 'NR']
+        
         est_numeric = est.apply(pd.to_numeric, errors='coerce')
+        est_numeric = est_numeric.drop(columns=y_options)
+        
+        
         # Calcula la matriu de correlacions
         corr_matrix = est_numeric.corr()
-        corr_matrix = corr_matrix.drop(['Previ 7'])
-        corr_matrix = corr_matrix.drop(['Previ 42'])
+        # corr_matrix = corr_matrix.drop(['Previ 7'])
+        # corr_matrix = corr_matrix.drop(['Previ 42'])
         # Filtrar per les correlacions de Final 7 i Final 42
         corr_final7 = corr_matrix[['Final 7']].drop(['Final 7'])
         corr_final42 = corr_matrix[['Final 42']].drop(['Final 42'])
@@ -258,8 +265,7 @@ if check_password():
             st.table(top_corr_final42)
         
         
-        
-        
+          
         
 
 
@@ -267,50 +273,107 @@ if check_password():
     
         y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42']
         selected_y = st.selectbox("Selecciona la variable Y:", y_options, index=3)
-    
+        
+        y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42', 'Lot ASM', 'Lot', 'NR']
+        
+        st.header("Modelització")
+     
+        
+        est = pd.merge(est, matriu[['NR', 'Origen', 'Extracció']], on='NR', how='left')
+
         est_numeric = est.apply(pd.to_numeric, errors='coerce')
         X = est_numeric.drop(columns=y_options)
         y = est_numeric[selected_y]
         
-        feature_names = X.columns.tolist()
-        
         preprocessor = ColumnTransformer(
-                transformers=[
-                    ('num', SimpleImputer(strategy='mean'), X.columns)
-                ])
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
-        X_train = preprocessor.fit_transform(X_train)
-        X_test = preprocessor.transform(X_test)
-        
-    
-        best_params_rf = {
-            'n_estimators': 300,
-            'max_depth': 30,
-            'min_samples_split': 10,
-            'min_samples_leaf': 4
-        }
-        # Initialize and train the Random Forest model with the best parameters
-        rf_model = RandomForestRegressor(
-            n_estimators=best_params_rf['n_estimators'],
-            max_depth=best_params_rf['max_depth'],
-            min_samples_split=best_params_rf['min_samples_split'],
-            min_samples_leaf=best_params_rf['min_samples_leaf'],
-            random_state=42
+            transformers=[
+                ('num', SimpleImputer(strategy='mean'), X.columns)
+            ]
         )
+ 
+        X_preprocessed = preprocessor.fit_transform(X)
+      
+        feature_names = X.columns.tolist()
+
+        # Seleccionar les 10 característiques més rellevants
+        selector = SelectKBest(score_func=f_regression, k=10)
+        X_selected = selector.fit_transform(X_preprocessed, y)
+        selected_feature_indices = selector.get_support(indices=True)
+        selected_feature_names = [feature_names[i] for i in selected_feature_indices]
+
+        # Ordenar les característiques seleccionades per rellevància (F-value)
+        f_values = selector.scores_
+        selected_features_with_f = sorted(
+            zip(selected_feature_names, f_values[selected_feature_indices]),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        ordered_feature_names = [feature for feature, _ in selected_features_with_f]
+
+        # Mostrar les característiques seleccionades i els seus valors F
+        st.write("## Variables més rellevants")
+        st.write("""
+            ### Selecció de Variables Rellevants
+
+            En la modelització predictiva, és essencial identificar quines variables (característiques) tenen un impacte significatiu en la variable objectiu. Això es fa mitjançant l'anàlisi de la regressió F (ANOVA) i els valors p associats.
+
+            #### Càlcul del Valor F
+
+            El valor F en una anàlisi de regressió compara la variància explicada per cada variable independent amb la variància no explicada (o error). Un valor F alt indica que una gran part de la variància de la variable objectiu és explicada per la variable independent.
+
+            - **Alt valor F**: La variable independent té una gran capacitat d'explicar la variància de la variable dependent.
+            - **Baix valor F**: La variable independent té poca capacitat d'explicar la variància de la variable dependent.
+
+            #### Valor P Associat
+
+            El valor p mesura la probabilitat que la relació observada entre les variables independent i dependent sigui deguda a l'atzar. Un valor p baix indica que és poc probable que la relació sigui per atzar, suggerint una relació significativa.
+
+            - **Valor p baix (per exemple, < 0.05)**: La variable independent és estadísticament significativa.
+            - **Valor p alt (per exemple, > 0.05)**: La variable independent pot no ser significativa.
+
+            #### Procediment de Selecció
+
+            1. **Càlcul de valors F i p per a cada variable independent (X)**.
+            2. **Selecció de les variables més rellevants** basant-se en els valors F més alts i els valors p més baixos. Per fer-ho, utilitzem la llibreria `SelectKBest` del paquet `sklearn.feature_selection` per seleccionar les millors variables per al model. `SelectKBest` selecciona les k millors característiques basant-se en els tests estadístics, en aquest cas, la regressió F.
+            3. **Construcció del model final** utilitzant les variables seleccionades.
+            """)
+
+        f_values_df = pd.DataFrame({
+            'Feature': ordered_feature_names,
+            'F-Value': [f for _, f in selected_features_with_f]
+        }).sort_values(by='F-Value', ascending=False)
+        st.table(f_values_df)
+
+        # Dividir les dades en entrenament i prova
+        X_train, X_test, y_train, y_test = train_test_split(X_selected, y, test_size=0.2, random_state=42)
+
+        # Entrenar el model amb les característiques seleccionades
+        rf_model = RandomForestRegressor(n_estimators=300, max_depth=30, min_samples_split=10, min_samples_leaf=4, random_state=42)
         rf_model.fit(X_train, y_train)
 
-        # Make predictions
+        # Rendiment del model
         y_train_pred = rf_model.predict(X_train)
         y_test_pred = rf_model.predict(X_test)
 
-        # Calculate metrics
         train_mse = mean_squared_error(y_train, y_train_pred)
         test_mse = mean_squared_error(y_test, y_test_pred)
+
         train_r2 = r2_score(y_train, y_train_pred)
         test_r2 = r2_score(y_test, y_test_pred)
 
-        # Display results
+        st.write("### Interpretació dels Resultats del Model ")
+        st.write("""
+        
+        - **MSE (Error Quadràtic Mitjà)**: Aquest valor indica, de mitjana, quant s'equivoca el model en les seves prediccions. Un valor més baix és millor, ja que significa que les prediccions estan més a prop dels valors reals.
+        - **R² (Coeficient de Determinació)**: Aquest valor mostra quina part de la variabilitat de les dades és explicada pel model. Un valor proper a 1 indica un model molt bo, mentre que un valor baix indica que el model no explica bé les dades.
+
+        **Com interpretar els resultats:**
+
+        - **Bon Ajust:** Si el model té un MSE baix i un R² alt, significa que és bo per predir l'estabilitat de les xantofil·les.
+        - **Marge de Millora:** Encara que el model sigui bo, sempre es pot millorar ajustant paràmetres o afegint més dades.
+        """)
+       
+  
         results_df = pd.DataFrame([{
             'Model': 'Random Forest',
             'Train MSE': train_mse,
@@ -320,136 +383,118 @@ if check_password():
         }])
         st.write("## Resultats de la Modelització")
         st.write(results_df)
-        st.write("##### Prediccions vs. Valors Reals")
-        fig, ax = plt.subplots()
-        ax.scatter(y_test, y_test_pred, edgecolors=(0, 0, 0))
-        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=4)
-        ax.set_xlabel('Valors Reals')
-        ax.set_ylabel('Prediccions')
-        ax.set_title('Random Forest Predictions vs. Actual')
-        st.pyplot(fig)
-
-        # Feature Importance
-
-        importances = rf_model.feature_importances_
-        total_importance = np.sum(importances)
-        indices = np.argsort(importances)[::-1]
-
-        # Show only top 10 features
-        st.write("### Top 10 Característiques")
-        for f in range(min(10, len(feature_names))):
-            feature_name = feature_names[indices[f]]
-            importance_value = importances[indices[f]]
-            importance_percentage = (importance_value / total_importance) * 100
-            st.write(f"{feature_name}: {importance_percentage:.2f}%")
-        
-
-
-
-        st.write("")
+    
     elif option == "Calculadora":
+    
+        st.header("Calculadora")
+    
         y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42']
         selected_y = st.selectbox("Selecciona la variable Y:", y_options, index=3)
+        y_options = ['Previ 7', 'Final 7', 'Previ 42', 'Final 42', 'Lot ASM', 'Lot', 'Productor', 'NR']
+        
+        
+        est = pd.merge(est, matriu[['NR', 'Origen', 'Extracció']], on='NR', how='left')
 
-        est_numeric = est.apply(lambda x: pd.to_numeric(x.astype(str).str.replace(',', '.'), errors='coerce'))
+        est_numeric = est.apply(pd.to_numeric, errors='coerce')
         X = est_numeric.drop(columns=y_options)
         y = est_numeric[selected_y]
-
-        # Guardem els noms de les característiques per a l'anàlisi posterior
-        feature_names = X.columns.tolist()
-
-        # Eliminar les columnes que tenen tots els valors mancants
-        X = X.dropna(axis=1, how='all')
-
-        # Guardem els nous noms de les característiques després d'eliminar les columnes completament mancants
-        feature_names = X.columns.tolist()
-
-        # Data preprocessing pipeline
-        pipeline = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='mean')),
-            ('scaler', StandardScaler())
-        ])
-
-        # Split data into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-        # Apply the preprocessing pipeline to the training and testing data
-        X_train = pipeline.fit_transform(X_train)
-        X_test = pipeline.transform(X_test)
-
-        # Ensure the number of features after preprocessing matches the original feature names
-        if X_train.shape[1] != len(feature_names):
-            # Log the difference in features
-            original_features = set(feature_names)
-            preprocessed_features = set([f"feature_{i}" for i in range(X_train.shape[1])])
-            missing_features = original_features - preprocessed_features
-            extra_features = preprocessed_features - original_features
-            raise ValueError(
-                f"Number of features after preprocessing ({X_train.shape[1]}) "
-                f"does not match the original number of feature names ({len(feature_names)}).\n"
-                f"Missing features: {missing_features}\n"
-                f"Extra features: {extra_features}"
-            )
-
-        # Define best parameters for RandomForestRegressor
-        best_params_rf = {
-            'n_estimators': 300,
-            'max_depth': 30,
-            'min_samples_split': 10,
-            'min_samples_leaf': 4
-        }
-
-        # Initialize and train the Random Forest model with the best parameters
-        rf_model = RandomForestRegressor(
-            n_estimators=best_params_rf['n_estimators'],
-            max_depth=best_params_rf['max_depth'],
-            min_samples_split=best_params_rf['min_samples_split'],
-            min_samples_leaf=best_params_rf['min_samples_leaf'],
-            random_state=42
+        
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', SimpleImputer(strategy='mean'), X.columns)
+            ]
         )
+
+        X_preprocessed = preprocessor.fit_transform(X)
+        feature_names = X.columns.tolist()
+
+        # Seleccionar les 10 característiques més rellevants
+        selector = SelectKBest(score_func=f_regression, k=10)
+        X_selected = selector.fit_transform(X_preprocessed, y)
+        selected_feature_indices = selector.get_support(indices=True)
+        selected_feature_names = [feature_names[i] for i in selected_feature_indices]
+
+        # Ordenar les característiques seleccionades per rellevància (F-value)
+        f_values = selector.scores_
+        selected_features_with_f = sorted(
+            zip(selected_feature_names, f_values[selected_feature_indices]),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        ordered_feature_names = [feature for feature, _ in selected_features_with_f]
+
+        
+
+        f_values_df = pd.DataFrame({
+            'Feature': ordered_feature_names,
+            'F-Value': [f for _, f in selected_features_with_f]
+        }).sort_values(by='F-Value', ascending=False)
+       
+
+        # Dividir les dades en entrenament i prova
+        X_train, X_test, y_train, y_test = train_test_split(X_selected, y, test_size=0.2, random_state=42)
+
+        # Entrenar el model amb les característiques seleccionades
+        rf_model = RandomForestRegressor(n_estimators=200, max_depth=30, min_samples_split=2, min_samples_leaf=1, random_state=42)
         rf_model.fit(X_train, y_train)
 
-        ## Calcular la importància de les característiques
-        importances = rf_model.feature_importances_
+        # Rendiment del model
+        y_train_pred = rf_model.predict(X_train)
+        y_test_pred = rf_model.predict(X_test)
+
+        train_mse = mean_squared_error(y_train, y_train_pred)
+        test_mse = mean_squared_error(y_test, y_test_pred)
+
+        train_r2 = r2_score(y_train, y_train_pred)
+        test_r2 = r2_score(y_test, y_test_pred)
+
+        st.write("### Metriques del Model ")
+       
+       
+  
+        results_df = pd.DataFrame([{
+            'Model': 'Random Forest',
+            'Train MSE': train_mse,
+            'Test MSE': test_mse,
+            'Train R²': train_r2,
+            'Test R²': test_r2
+        }])
+       
+        st.write(results_df)
         
 
-        # Crear una sèrie amb la importància de les característiques, ordenades descendentment
-        feature_importance = pd.Series(importances, index=feature_names[:X_train.shape[1]]).sort_values(ascending=False)
-        
+        # Configurar el número de columnas por fila
+        num_columns = 3  # Puedes ajustar este valor según sea necesario
+        num_rows = (len(ordered_feature_names) + num_columns - 1) // num_columns
 
-        # Seleccionar les 65 característiques més importants per a la predicció
-        significant_variables = feature_importance.head(65).index.tolist()
-
-        # Mostrar les caixes d'entrada per a les variables significatives en una graella
-        st.header("Valors obtinguts per a la predicció:")
         input_values = {}
-        num_columns = 5
-        num_rows = (len(significant_variables) + num_columns - 1) // num_columns  # Calcular el nombre de files necessàries
 
         for row in range(num_rows):
             cols = st.columns(num_columns)
             for i, col in enumerate(cols):
                 index = row * num_columns + i
-                if index < len(significant_variables):
-                    feature = significant_variables[index]
+                if index < len(ordered_feature_names):
+                    feature = ordered_feature_names[index]
                     input_values[feature] = col.number_input(feature)
 
+   
+        
         # Preparar les dades d'entrada com a DataFrame per a la predicció
         input_data = pd.DataFrame([input_values])
 
+        # Assegurar-se que totes les columnes necessàries estan presents en input_data
+        for feature in feature_names:
+            if feature not in input_data.columns:
+                input_data[feature] = 0  # Omplir amb zero o algun altre valor predeterminat
+
         # Aplicar el preprocessor a les dades d'entrada
-        input_data_preprocessed = pipeline.transform(input_data)
+        input_data_preprocessed = preprocessor.transform(input_data)
 
-        # Realitzar la predicció utilitzant el model entrenat
-        prediction = rf_model.predict(input_data_preprocessed)
-
+        # Seleccionar les característiques rellevants
+        input_data_selected = selector.transform(input_data_preprocessed)
+        
+        # Realitzar la predicció
+        prediction = rf_model.predict(input_data_selected)
+        
         # Mostrar el resultat de la predicció
-        st.subheader(f"Predicció per '{selected_y}':")
-        st.write(prediction[0])
-       
-    
-
-    
-
-
-    #######    
+        st.subheader(f"Predicció per '{selected_y}': {prediction[0]:.4f}")
